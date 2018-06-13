@@ -65,12 +65,31 @@ type Data struct {
 func VerifyUserFromRequest(
 	req *http.Request, data Data,
 ) (*authtypes.Device, *util.JSONResponse) {
-	// Try to find local user from device database
-	dev, devErr := verifyAccessToken(req, data.DeviceDB)
-	if devErr == nil {
+	// Check to see if this is an application service user
+	dev, err := verifyApplicationServiceUser(req, data)
+	if err != nil {
+		return nil, err
+	} else if dev != nil {
 		return dev, nil
 	}
 
+	// Try to find local user from device database
+	dev, err = verifyAccessToken(req, data.DeviceDB)
+	if err == nil {
+		return dev, nil
+	}
+
+	return nil, &util.JSONResponse{
+		Code: http.StatusUnauthorized,
+		JSON: jsonerror.UnknownToken("Unrecognized access token"),
+	}
+}
+
+// verifyApplicationServiceUser attempts to retrieve a userID given a request
+// originating from an application service
+func verifyApplicationServiceUser(
+	req *http.Request, data Data,
+) (*authtypes.Device, *util.JSONResponse) {
 	// Try to find the Application Service user
 	token, err := extractAccessToken(req)
 	if err != nil {
@@ -128,10 +147,7 @@ func VerifyUserFromRequest(
 		return &dev, nil
 	}
 
-	return nil, &util.JSONResponse{
-		Code: http.StatusUnauthorized,
-		JSON: jsonerror.UnknownToken("Unrecognized access token"),
-	}
+	return nil, nil
 }
 
 // verifyAccessToken verifies that an access token was supplied in the given HTTP request
