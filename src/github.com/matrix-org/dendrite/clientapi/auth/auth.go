@@ -108,7 +108,8 @@ func verifyApplicationServiceUser(
 		}
 	}
 
-	if appService != nil {
+	userID := req.URL.Query().Get("user_id")
+	if appService != nil && userID != "" {
 		// Create a dummy device for AS user
 		dev := authtypes.Device{
 			// Use AS dummy device ID
@@ -117,7 +118,6 @@ func verifyApplicationServiceUser(
 			AccessToken: token,
 		}
 
-		userID := req.URL.Query().Get("user_id")
 		localpart, err := userutil.ParseUsernameParam(userID, nil)
 		if err != nil {
 			return nil, &util.JSONResponse{
