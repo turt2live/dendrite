@@ -15,6 +15,7 @@
 package appservice
 
 import (
+	"context"
 	"sync"
 
 	"github.com/matrix-org/dendrite/appservice/consumers"
@@ -23,9 +24,11 @@ import (
 	"github.com/matrix-org/dendrite/appservice/types"
 	"github.com/matrix-org/dendrite/appservice/workers"
 	"github.com/matrix-org/dendrite/clientapi/auth/storage/accounts"
+	"github.com/matrix-org/dendrite/clientapi/auth/storage/devices"
 	"github.com/matrix-org/dendrite/common/basecomponent"
+	"github.com/matrix-org/dendrite/common/config"
 	"github.com/matrix-org/dendrite/common/transactions"
-	"github.com/matrix-org/dendrite/roomserver/api"
+	roomserverAPI "github.com/matrix-org/dendrite/roomserver/api"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/sirupsen/logrus"
 )
@@ -35,9 +38,10 @@ import (
 func SetupAppServiceAPIComponent(
 	base *basecomponent.BaseDendrite,
 	accountsDB *accounts.Database,
+	deviceDB *devices.Database,
 	federation *gomatrixserverlib.FederationClient,
-	aliasAPI api.RoomserverAliasAPI,
-	queryAPI api.RoomserverQueryAPI,
+	roomserverAliasAPI roomserverAPI.RoomserverAliasAPI,
+	roomserverQueryAPI roomserverAPI.RoomserverQueryAPI,
 	transactionsCache *transactions.Cache,
 ) {
 	// Create a connection to the appservice postgres DB
@@ -46,9 +50,6 @@ func SetupAppServiceAPIComponent(
 		logrus.WithError(err).Panicf("failed to connect to appservice db")
 	}
 
-	// Wrap application services in a type that relates the application service and
-	// a sync.Cond object that can be used to notify workers when there are new
-	// events to be sent out.
 	workerStates := make([]types.ApplicationServiceWorkerState, len(base.Cfg.Derived.ApplicationServices))
 	for i, appservice := range base.Cfg.Derived.ApplicationServices {
 		m := sync.Mutex{}
@@ -57,11 +58,18 @@ func SetupAppServiceAPIComponent(
 			Cond:       sync.NewCond(&m),
 		}
 		workerStates[i] = ws
+
+		// Create bot account for this AS if it doesn't already exist
+		if err = generateAppServiceAccount(accountsDB, deviceDB, appservice); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"appservice": appservice.ID,
+			}).WithError(err).Panicf("failed to generate bot account for appservice")
+		}
 	}
 
 	consumer := consumers.NewOutputRoomEventConsumer(
 		base.Cfg, base.KafkaConsumer, accountsDB, appserviceDB,
-		queryAPI, aliasAPI, workerStates,
+		roomserverQueryAPI, roomserverAliasAPI, workerStates,
 	)
 	if err := consumer.Start(); err != nil {
 		logrus.WithError(err).Panicf("failed to start app service roomserver consumer")
@@ -74,7 +82,31 @@ func SetupAppServiceAPIComponent(
 
 	// Set up HTTP Endpoints
 	routing.Setup(
-		base.APIMux, *base.Cfg, queryAPI, aliasAPI, accountsDB,
-		federation, transactionsCache,
+		base.APIMux, *base.Cfg, roomserverQueryAPI, roomserverAliasAPI,
+		accountsDB, federation, transactionsCache,
 	)
+}
+
+// generateAppServiceAccounts creates a dummy account based off the
+// `sender_localpart` field of each application service if it doesn't
+// exist already
+func generateAppServiceAccount(
+	accountsDB *accounts.Database,
+	deviceDB *devices.Database,
+	as config.ApplicationService,
+) error {
+	ctx := context.Background()
+
+	// Create an account for the application service
+	acc, err := accountsDB.CreateAccount(ctx, as.SenderLocalpart, "", as.ID)
+	if err != nil {
+		return err
+	} else if acc == nil {
+		// This account already exists
+		return nil
+	}
+
+	// Create a dummy device with a dummy token for the application service
+	_, err = deviceDB.CreateDevice(ctx, as.SenderLocalpart, nil, as.ASToken, &as.SenderLocalpart)
+	return err
 }
