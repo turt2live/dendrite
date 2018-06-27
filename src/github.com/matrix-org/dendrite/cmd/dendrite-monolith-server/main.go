@@ -54,13 +54,14 @@ func main() {
 	keyRing := keydb.CreateKeyRing(federation.Client, keyDB)
 
 	alias, input, query := roomserver.SetupRoomServerComponent(base)
+	asQuery := base.CreateHTTPAppServiceAPIs()
 
 	clientapi.SetupClientAPIComponent(
 		base, deviceDB, accountDB,
 		federation, &keyRing, alias, input, query,
-		transactions.New(),
+		asQuery, transactions.New(),
 	)
-	federationapi.SetupFederationAPIComponent(base, accountDB, federation, &keyRing, alias, input, query)
+	federationapi.SetupFederationAPIComponent(base, accountDB, federation, &keyRing, alias, input, query, asQuery)
 	federationsender.SetupFederationSenderComponent(base, federation, query)
 	mediaapi.SetupMediaAPIComponent(base, deviceDB)
 	publicroomsapi.SetupPublicRoomsAPIComponent(base, deviceDB)

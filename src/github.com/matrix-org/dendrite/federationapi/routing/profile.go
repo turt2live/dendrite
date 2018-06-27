@@ -17,6 +17,7 @@ package routing
 import (
 	"net/http"
 
+	appserviceAPI "github.com/matrix-org/dendrite/appservice/api"
 	"github.com/matrix-org/dendrite/clientapi/auth/storage/accounts"
 	"github.com/matrix-org/dendrite/clientapi/httputil"
 	"github.com/matrix-org/dendrite/clientapi/jsonerror"
@@ -31,6 +32,7 @@ func GetProfile(
 	httpReq *http.Request,
 	accountDB *accounts.Database,
 	cfg config.Dendrite,
+	asAPI appserviceAPI.AppServiceQueryAPI,
 ) util.JSONResponse {
 	userID, field := httpReq.FormValue("user_id"), httpReq.FormValue("field")
 
@@ -42,7 +44,7 @@ func GetProfile(
 		}
 	}
 
-	localpart, domain, err := gomatrixserverlib.SplitID('@', userID)
+	_, domain, err := gomatrixserverlib.SplitID('@', userID)
 	if err != nil {
 		return httputil.LogThenError(httpReq, err)
 	}
@@ -51,7 +53,7 @@ func GetProfile(
 		return httputil.LogThenError(httpReq, err)
 	}
 
-	profile, err := accountDB.GetProfileByLocalpart(httpReq.Context(), localpart)
+	profile, err := appserviceAPI.RetreiveUserProfile(httpReq.Context(), userID, asAPI, accountDB)
 	if err != nil {
 		return httputil.LogThenError(httpReq, err)
 	}

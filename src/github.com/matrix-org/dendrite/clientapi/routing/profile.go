@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 
+	appserviceAPI "github.com/matrix-org/dendrite/appservice/api"
 	"github.com/matrix-org/dendrite/clientapi/auth/authtypes"
 	"github.com/matrix-org/dendrite/clientapi/auth/storage/accounts"
 	"github.com/matrix-org/dendrite/clientapi/httputil"
@@ -33,7 +34,7 @@ import (
 
 // GetProfile implements GET /profile/{userID}
 func GetProfile(
-	req *http.Request, accountDB *accounts.Database, userID string,
+	req *http.Request, accountDB *accounts.Database, userID string, asAPI appserviceAPI.AppServiceQueryAPI,
 ) util.JSONResponse {
 	if req.Method != http.MethodGet {
 		return util.JSONResponse{
@@ -41,12 +42,7 @@ func GetProfile(
 			JSON: jsonerror.NotFound("Bad method"),
 		}
 	}
-	localpart, _, err := gomatrixserverlib.SplitID('@', userID)
-	if err != nil {
-		return httputil.LogThenError(req, err)
-	}
-
-	profile, err := accountDB.GetProfileByLocalpart(req.Context(), localpart)
+	profile, err := appserviceAPI.RetreiveUserProfile(req.Context(), userID, asAPI, accountDB)
 	if err != nil {
 		return httputil.LogThenError(req, err)
 	}
@@ -62,14 +58,9 @@ func GetProfile(
 
 // GetAvatarURL implements GET /profile/{userID}/avatar_url
 func GetAvatarURL(
-	req *http.Request, accountDB *accounts.Database, userID string,
+	req *http.Request, accountDB *accounts.Database, userID string, asAPI appserviceAPI.AppServiceQueryAPI,
 ) util.JSONResponse {
-	localpart, _, err := gomatrixserverlib.SplitID('@', userID)
-	if err != nil {
-		return httputil.LogThenError(req, err)
-	}
-
-	profile, err := accountDB.GetProfileByLocalpart(req.Context(), localpart)
+	profile, err := appserviceAPI.RetreiveUserProfile(req.Context(), userID, asAPI, accountDB)
 	if err != nil {
 		return httputil.LogThenError(req, err)
 	}
@@ -154,14 +145,9 @@ func SetAvatarURL(
 
 // GetDisplayName implements GET /profile/{userID}/displayname
 func GetDisplayName(
-	req *http.Request, accountDB *accounts.Database, userID string,
+	req *http.Request, accountDB *accounts.Database, userID string, asAPI appserviceAPI.AppServiceQueryAPI,
 ) util.JSONResponse {
-	localpart, _, err := gomatrixserverlib.SplitID('@', userID)
-	if err != nil {
-		return httputil.LogThenError(req, err)
-	}
-
-	profile, err := accountDB.GetProfileByLocalpart(req.Context(), localpart)
+	profile, err := appserviceAPI.RetreiveUserProfile(req.Context(), userID, asAPI, accountDB)
 	if err != nil {
 		return httputil.LogThenError(req, err)
 	}
