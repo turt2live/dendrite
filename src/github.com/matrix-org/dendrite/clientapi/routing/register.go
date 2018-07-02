@@ -39,6 +39,7 @@ import (
 	"github.com/matrix-org/dendrite/clientapi/auth/storage/devices"
 	"github.com/matrix-org/dendrite/clientapi/httputil"
 	"github.com/matrix-org/dendrite/clientapi/jsonerror"
+	"github.com/matrix-org/dendrite/clientapi/userutil"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/util"
 	"github.com/prometheus/client_golang/prometheus"
@@ -175,8 +176,8 @@ type recaptchaResponse struct {
 	ErrorCodes  []int     `json:"error-codes"`
 }
 
-// validateUserName returns an error response if the username is invalid
-func validateUserName(username string) *util.JSONResponse {
+// validateUsername returns an error response if the username is invalid
+func validateUsername(username string) *util.JSONResponse {
 	// https://github.com/matrix-org/synapse/blob/v0.20.0/synapse/rest/client/v2_alpha/register.py#L161
 	if len(username) > maxUsernameLength {
 		return &util.JSONResponse{
@@ -289,11 +290,12 @@ func UsernameIsWithinApplicationServiceNamespace(
 	username string,
 	appservice *config.ApplicationService,
 ) bool {
+	userID := userutil.MakeUserID(username, cfg.Matrix.ServerName)
 	if appservice != nil {
 		// Loop through given Application Service's namespaces and see if any match
 		for _, namespace := range appservice.NamespaceMap["users"] {
 			// AS namespaces are checked for validity in config
-			if namespace.RegexpObject.MatchString(username) {
+			if namespace.RegexpObject.MatchString(userID) {
 				return true
 			}
 		}
@@ -304,7 +306,7 @@ func UsernameIsWithinApplicationServiceNamespace(
 	for _, knownAppservice := range cfg.Derived.ApplicationServices {
 		for _, namespace := range knownAppservice.NamespaceMap["users"] {
 			// AS namespaces are checked for validity in config
-			if namespace.RegexpObject.MatchString(username) {
+			if namespace.RegexpObject.MatchString(userID) {
 				return true
 			}
 		}
@@ -318,19 +320,31 @@ func UsernameMatchesMultipleExclusiveNamespaces(
 	cfg *config.Dendrite,
 	username string,
 ) bool {
+	userID := userutil.MakeUserID(username, cfg.Matrix.ServerName)
+
 	// Check namespaces and see if more than one match
 	matchCount := 0
 	for _, appservice := range cfg.Derived.ApplicationServices {
 		for _, namespaceSlice := range appservice.NamespaceMap {
 			for _, namespace := range namespaceSlice {
 				// Check if we have a match on this username
-				if namespace.RegexpObject.MatchString(username) {
+				if namespace.RegexpObject.MatchString(userID) {
 					matchCount++
 				}
 			}
 		}
 	}
 	return matchCount > 1
+}
+
+// UsernameMatchesExclusiveNamespaces will check if a given username matches any
+// application service's exclusive users namespace
+func UsernameMatchesExclusiveNamespaces(
+	cfg *config.Dendrite,
+	username string,
+) bool {
+	userID := userutil.MakeUserID(username, cfg.Matrix.ServerName)
+	return cfg.Derived.ExclusiveApplicationServicesUsernameRegexp.MatchString(userID)
 }
 
 // validateApplicationService checks if a provided application service token
@@ -433,7 +447,7 @@ func Register(
 	// Squash username to all lowercase letters
 	r.Username = strings.ToLower(r.Username)
 
-	if resErr = validateUserName(r.Username); resErr != nil {
+	if resErr = validateUsername(r.Username); resErr != nil {
 		return *resErr
 	}
 	if resErr = validatePassword(r.Password); resErr != nil {
@@ -444,7 +458,7 @@ func Register(
 	// service namespace. Skip this check if no app services are registered.
 	if r.Auth.Type != "m.login.application_service" &&
 		len(cfg.Derived.ApplicationServices) != 0 &&
-		cfg.Derived.ExclusiveApplicationServicesUsernameRegexp.MatchString(r.Username) {
+		UsernameMatchesExclusiveNamespaces(cfg, r.Username) {
 		return util.JSONResponse{
 			Code: http.StatusBadRequest,
 			JSON: jsonerror.ASExclusive("This username is reserved by an application service."),
@@ -630,7 +644,7 @@ func parseAndValidateLegacyLogin(req *http.Request, r *legacyRegisterRequest) *u
 	// Squash username to all lowercase letters
 	r.Username = strings.ToLower(r.Username)
 
-	if resErr = validateUserName(r.Username); resErr != nil {
+	if resErr = validateUsername(r.Username); resErr != nil {
 		return resErr
 	}
 	if resErr = validatePassword(r.Password); resErr != nil {
@@ -822,7 +836,7 @@ func RegisterAvailable(
 	// Squash username to all lowercase letters
 	username = strings.ToLower(username)
 
-	if err := validateUserName(username); err != nil {
+	if err := validateUsername(username); err != nil {
 		return *err
 	}
 
