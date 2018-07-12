@@ -28,7 +28,7 @@ import (
 	"github.com/matrix-org/dendrite/common/basecomponent"
 	"github.com/matrix-org/dendrite/common/config"
 	"github.com/matrix-org/dendrite/common/transactions"
-	roomserverAPI "github.com/matrix-org/dendrite/roomserver/api"
+	"github.com/matrix-org/dendrite/roomserver/api"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/sirupsen/logrus"
 )
@@ -40,8 +40,8 @@ func SetupAppServiceAPIComponent(
 	accountsDB *accounts.Database,
 	deviceDB *devices.Database,
 	federation *gomatrixserverlib.FederationClient,
-	roomserverAliasAPI roomserverAPI.RoomserverAliasAPI,
-	roomserverQueryAPI roomserverAPI.RoomserverQueryAPI,
+	aliasAPI api.RoomserverAliasAPI,
+	queryAPI api.RoomserverQueryAPI,
 	transactionsCache *transactions.Cache,
 ) {
 	// Create a connection to the appservice postgres DB
@@ -69,7 +69,7 @@ func SetupAppServiceAPIComponent(
 
 	consumer := consumers.NewOutputRoomEventConsumer(
 		base.Cfg, base.KafkaConsumer, accountsDB, appserviceDB,
-		roomserverQueryAPI, roomserverAliasAPI, workerStates,
+		queryAPI, aliasAPI, workerStates,
 	)
 	if err := consumer.Start(); err != nil {
 		logrus.WithError(err).Panicf("failed to start app service roomserver consumer")
@@ -82,7 +82,7 @@ func SetupAppServiceAPIComponent(
 
 	// Set up HTTP Endpoints
 	routing.Setup(
-		base.APIMux, *base.Cfg, roomserverQueryAPI, roomserverAliasAPI,
+		base.APIMux, *base.Cfg, queryAPI, aliasAPI,
 		accountsDB, federation, transactionsCache,
 	)
 }
