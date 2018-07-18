@@ -218,6 +218,26 @@ type Dendrite struct {
 		ConfigFiles []string `yaml:"config_files"`
 	} `yaml:"application_services"`
 
+	// Homeserver auto-discovery
+	Discovery struct {
+		ConnectIp string `yaml:"connect_ip"`
+		ConnectPort int `yaml:"connect_port"`
+		ConnectScheme string `yaml:"connect_scheme"`
+		Name string `yaml:"name"`
+		Enabled bool `yaml:"enabled"`
+		Ents struct {
+			RoomIds struct {
+				SuperSimon string `yaml:"supersimon"`
+				HovercraftGps string `yaml:"hovercraft_gps"`
+				HovercraftRamps string `yaml:"hovercraft_ramps"`
+			} `yaml:"room_ids"`
+			Appservice struct {
+				AdvertisedToken string `yaml:"advertised_access_token"` // THIS IS REALLY BAD
+				Prefix string `yaml:"prefix"`
+			} `yaml:"appservice"`
+		} `yaml:"ents"`
+	} `yaml:"discovery"`
+
 	// The config for logging informations. Each hook will be added to logrus.
 	Logging []LogrusHook `yaml:"logging"`
 

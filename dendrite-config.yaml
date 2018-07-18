@@ -127,6 +127,23 @@ tracing:
 application_services:
     config_files: []
 
+discovery:
+  connect_ip: "192.168.0.142"
+  connect_port: 8008
+  connect_scheme: "http"
+  name: "My Dendrite Server"
+  enabled: true
+  ents:
+    room_ids:
+      supersimon: "!somewhere"
+      hovercraft_gps: "!somewhere"
+      hovercraft_ramps: "!somewhere"
+    appservice:
+      # This is sent to everyone on the network in plain text. Only use this on a secure,
+      # private, network or environment.
+      advertised_access_token: ""
+      prefix: "@_ents_"
+
 # The configuration for dendrite logs
 logging:
     # The logging type, only "file" is supported at the moment

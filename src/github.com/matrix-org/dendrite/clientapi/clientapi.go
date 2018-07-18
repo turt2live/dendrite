@@ -25,6 +25,7 @@ import (
 	roomserverAPI "github.com/matrix-org/dendrite/roomserver/api"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/sirupsen/logrus"
+	"github.com/matrix-org/dendrite/clientapi/discovery"
 )
 
 // SetupClientAPIComponent sets up and registers HTTP handlers for the ClientAPI
@@ -64,4 +65,6 @@ func SetupClientAPIComponent(
 		accountsDB, deviceDB, federation, *keyRing, userUpdateProducer,
 		syncProducer, transactionsCache,
 	)
+
+	discovery.Start(*base.Cfg)
 }
