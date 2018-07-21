@@ -38,7 +38,7 @@ func advertiseLoop(config config.Dendrite) {
 		config.Discovery.Ents.Appservice.AdvertisedToken,
 		config.Discovery.Ents.Appservice.Prefix)
 	advertisePayload := []byte(advertiseStr)
-	payloadSize := len(advertisePayload)
+	payloadSize := int32(len(advertisePayload))
 
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, payloadSize)
