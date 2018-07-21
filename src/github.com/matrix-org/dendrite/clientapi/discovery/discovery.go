@@ -27,7 +27,7 @@ func advertiseLoop(config config.Dendrite) {
 	advertiseAddr := "255.255.255.255"
 	advertisePort := 8228
 
-	advertiseStr := fmt.Sprintf("A;%s;P;%d;S;%s;N;%s;ents_rid_ss;%s;ents_rid_hgps;%s;ents_rid_hrmp;%s;ents_as_token;%s;ents_as_prefix;%s;",
+	advertiseStr := fmt.Sprintf("A;%s;P;%d;S;%s;N;%s;ents_rid_ss;%s;ents_rid_hgps;%s;ents_rid_hrmp;%s;ents_as_token;%s;ents_as_prefix;%s;ents_hs_domain;%s;",
 		config.Discovery.ConnectIp,
 		config.Discovery.ConnectPort,
 		config.Discovery.ConnectScheme,
@@ -36,7 +36,8 @@ func advertiseLoop(config config.Dendrite) {
 		config.Discovery.Ents.RoomIds.HovercraftGps,
 		config.Discovery.Ents.RoomIds.HovercraftRamps,
 		config.Discovery.Ents.Appservice.AdvertisedToken,
-		config.Discovery.Ents.Appservice.Prefix)
+		config.Discovery.Ents.Appservice.Prefix,
+		config.Matrix.ServerName)
 	advertisePayload := []byte(advertiseStr)
 	payloadSize := int32(len(advertisePayload))
 
@@ -47,10 +48,10 @@ func advertiseLoop(config config.Dendrite) {
 	}
 
 	packaged := make([]byte, 0)
-	for _,b := range buf.Bytes(){
+	for _, b := range buf.Bytes() {
 		packaged = append(packaged, b)
 	}
-	for _,b := range advertisePayload{
+	for _, b := range advertisePayload {
 		packaged = append(packaged, b)
 	}
 
